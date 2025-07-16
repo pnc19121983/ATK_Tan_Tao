@@ -458,6 +458,38 @@ if selected_subjects_group:
 else:
     st.info("Vui lòng chọn ít nhất 1 môn để xem Top 10 thí sinh.")
 
+# ======= PHẦN BỔ SUNG: Danh sách thí sinh có điểm các môn từ 8 trở lên =======
+st.subheader("🌟 Danh sách thí sinh có điểm các môn thi từ 8 trở lên")
+
+main_subjects = ['Toán', 'Văn', 'Anh', 'Lý', 'Hóa', 'Sinh', 'Sử', 'Địa', 'KTPL', 'Tin', 'CN (NN)', 'CN (CN)']
+subject_cols_for_filter = [col for col in main_subjects if col in df.columns]
+
+# Tạo danh sách để lưu kết quả
+high_scores = []
+
+# Duyệt qua từng học sinh
+for _, row in df[['Họ tên'] + subject_cols_for_filter].dropna(subset=['Họ tên']).iterrows():
+    for subject in subject_cols_for_filter:
+        try:
+            score = row[subject]
+            if pd.notna(score) and score >= 8:
+                high_scores.append({
+                    "Họ và tên": row['Họ tên'],
+                    "Môn": subject,
+                    "Điểm": score
+                })
+        except:
+            pass
+
+# Tạo DataFrame kết quả
+df_high_scores = pd.DataFrame(high_scores)
+
+if not df_high_scores.empty:
+    df_high_scores = df_high_scores.reset_index(drop=True)
+    df_high_scores.insert(0, "STT", range(1, len(df_high_scores) + 1))
+    st.table(df_high_scores.style.format({'Điểm': '{:.2f}'}))
+else:
+    st.info("Không có thí sinh nào đạt điểm từ 8 trở lên ở các môn thi chính.")
 
 
 # ====== CHÂN TRANG ======
