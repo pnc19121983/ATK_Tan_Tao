@@ -422,9 +422,9 @@ st.table(top_students.style.format({'Tổng điểm': '{:.2f}'}))
 # Thống kê học sinh có điểm TN dưới 5
 at_risk_students = df[df['TN'] < 5][['Họ tên', 'Lớp', 'TN']].dropna(subset=['Họ tên'])
 
-st.write(f"Số lượng học sinh có điểm TN dưới 5: **{len(at_risk_students)}**")
+st.subheader(f"⚠️ Danh sách học sinh có điểm TN dưới 5 (Nguy cơ trượt tốt nghiệp) — Tổng: {len(at_risk_students)} học sinh")
 if len(at_risk_students) > 0:
-    at_risk_students = at_risk_students.reset_index(drop=True)   # Xóa index cũ
+    at_risk_students = at_risk_students.reset_index(drop=True)
     at_risk_students.insert(0, "STT", range(1, len(at_risk_students) + 1))
     st.table(at_risk_students.style.format({'TN': '{:.2f}'}))
 else:
