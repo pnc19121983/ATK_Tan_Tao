@@ -1,54 +1,14 @@
 import streamlit as st
-st.set_page_config(page_title="Phân tích điểm theo lớp", layout="wide")
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import socket
 import google.generativeai as genai
-import gdown
-import os
 
-# === THÔNG SỐ CẤU HÌNH ===
-FILE_ID = '1KB8QtOo9XtrJTMTGXNh9pHVMTt3hSELo' #Copy ID của file excel chia sẻ vào đây
-FILE_NAME = 'du_lieu_mau.xlsx'
-OWNER_HOSTNAME = 'TEN_MAY_CUA_BAN'
-
-is_owner = socket.gethostname() == OWNER_HOSTNAME
-
-if is_owner:
-    uploaded_file = st.file_uploader("📤 Tải file Excel", type=["xlsx", "xls"])
-    if uploaded_file:
-        with open(FILE_NAME, "wb") as f:
-            f.write(uploaded_file.read())
-        st.success("✅ Đã cập nhật dữ liệu thành công!")
-
-if not os.path.exists(FILE_NAME):
-    try:
-        url = f"https://drive.google.com/uc?id={FILE_ID}"
-        st.info("🔽 Đang tải dữ liệu từ Google Drive...")
-        gdown.download(url, FILE_NAME, quiet=False)
-        st.success("✅ Tải dữ liệu thành công!")
-    except Exception as e:
-        st.error(f"❌ Không thể tải file từ Google Drive: {e}")
-        st.stop()
-
-try:
-    df = pd.read_excel(FILE_NAME)
-    #st.success("✅ Dữ liệu đã được đọc thành công.")
-except Exception as e:
-    st.error(f"❌ Lỗi khi đọc file Excel: {e}")
-    st.stop()
-
-# === TIỀN XỬ LÝ ===
-df.columns = df.columns.str.strip()
-score_columns = ['Toán', 'Văn', 'Anh', 'Lý', 'Hóa', 'Sinh', 'Sử', 'Địa', 'KTPL', 'Tin', 'CN (NN)', 'CN (CN)','ĐTB cac nam','KK','UT','TN']
-for col in score_columns:
-    if col in df.columns:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-df['Điểm TB'] = df[score_columns].mean(axis=1, skipna=True)
-
-# === AI CẤU HÌNH ===
+# Cấu hình API key trực tiếp từ Google AI Studio
 genai.configure(api_key="AIzaSyAWXS7wjLXSUQVWa8e9k2MD1hjrL6rEkYU")
+
+# Xác định người dùng có phải là chủ sở hữu không
+is_owner = socket.gethostname() == "LAPTOP-3J8KA3L9"  # 👈 Đổi thành tên máy của bạn
 
 def generate_analysis(prompt_text):
     try:
@@ -56,9 +16,9 @@ def generate_analysis(prompt_text):
             model = genai.GenerativeModel("gemini-1.5-flash")
             default_instruction = (
                 "Hãy phân tích dữ liệu dưới đây theo cấu trúc:\n"
-                "- Căn cứ vào điểm trung bình, phương sai, độ lệch chuẩn, số trung vị, mốt, khoảng biến thiên, khoản tứ phân vị đưa ra nhận xét đánh giá\n"
-                "- Nguyên nhân của Chưa đạt là gì?\n"
-                "- Đề xuất hướng khắc phục cho các đối tượng Chưa đạt đó.\n\n"
+                "- Đơn vị nào có kết quả tốt, đơn vị nào có kết quả yếu kém?\n"
+                "- nguyên nhân của chất lượng yếu kém là gì?\n"
+                "- Đề xuất hướng khắc phục cho các yếu kém đó.\n\n"
             )
             full_prompt = default_instruction + str(prompt_text)
             response = model.generate_content(full_prompt)
@@ -66,20 +26,57 @@ def generate_analysis(prompt_text):
     except Exception as e:
         return f"❌ Lỗi khi gọi Google AI: {e}"
 
-# === GIAO DIỆN ===
+st.set_page_config(page_title="Phân tích điểm theo lớp", layout="wide")
 col1, col2 = st.columns([1, 15])
 with col1:
     st.image("logo.png", width=80)
 with col2:
-    st.markdown("## TRƯỜNG THPT NGUYỄN VĂN HUYÊN")
+    st.markdown("## TRƯỜNG ...")
 st.title("📘 Phân tích điểm thi")
 
+# Upload file chỉ cho máy chủ
+import socket
+is_owner = socket.gethostname() == "TEN_MAY_CUA_BAN"  # ⚠️ thay bằng tên máy của bạn
+
+# Nếu là chủ, mới hiển thị chức năng tải dữ liệu
+if is_owner:
+    uploaded_file = st.file_uploader("📤 Tải file Excel", type=["xlsx", "xls"])
+    if uploaded_file:
+        with open("du_lieu_mau.xlsx", "wb") as f:
+            f.write(uploaded_file.read())
+        st.success("✅ Đã cập nhật dữ liệu thành công!")
+
+# Load dữ liệu mẫu cho tất cả mọi người
+try:
+    df = pd.read_excel("du_lieu_mau.xlsx")
+except:
+    st.error("❌ Không tìm thấy file dữ liệu. Vui lòng upload trên máy chủ.")
+    st.stop()
+
+# Dữ liệu từ file chung
+try:
+    df = pd.read_excel("du_lieu_mau.xlsx")
+except:
+    st.error("❌ Không tìm thấy file du_lieu_mau.xlsx. Vui lòng upload trước (trên máy chủ).")
+    st.stop()
+
+# Tiền xử lý
+df.columns = df.columns.str.strip()  # Chuẩn hóa tên cột
+score_columns = ['Toán', 'Văn', 'Anh', 'Lý', 'Hóa', 'Sinh', 'Sử', 'Địa', 'KTPL', 'Tin', 'CN (NN)', 'CN (CN)','ĐTB cac nam','KK','UT','TN']
+for col in score_columns:
+    if col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Chỉ lấy điểm trung bình theo cột TN:
+df['Điểm TB'] = df['TN']
+
+# Sidebar lọc
 st.sidebar.header("🔎 Bộ lọc dữ liệu")
 school_options = ["Toàn trường"] + sorted(df['Lớp'].dropna().unique().tolist())
 selected_school = st.sidebar.selectbox("Chọn phạm vi phân tích:", school_options)
 df_filtered = df if selected_school == "Toàn trường" else df[df['Lớp'] == selected_school]
 
-# === BIỂU ĐỒ: ĐIỂM TB THEO LỚP ===
+# Biểu đồ phần 1 – Trung bình theo trường
 st.subheader("🏫 Biểu đồ điểm trung bình theo Lớp")
 
 avg_by_school = df_filtered.groupby("Lớp")['Điểm TB'].mean()
@@ -87,6 +84,7 @@ avg_all = df_filtered['Điểm TB'].mean()
 avg_by_school["Điểm TB toàn bộ"] = avg_all
 avg_by_school = avg_by_school.sort_values(ascending=False)
 
+# Đánh số thứ tự, bỏ qua dòng "Điểm TB toàn bộ"
 ranked_labels = []
 rank = 1
 for name in avg_by_school.index:
@@ -110,6 +108,7 @@ ax1.set_title("Biểu đồ điểm trung bình theo Lớp")
 ax1.set_ylim(0, 10)
 plt.xticks(rotation=45, ha='right')
 
+# 👉 Tô màu chữ "Trung bình" thành cam
 xtick_labels = ax1.get_xticklabels()
 for label in xtick_labels:
     if label.get_text() == "Trung bình":
@@ -118,9 +117,10 @@ for label in xtick_labels:
 plt.tight_layout()
 st.pyplot(fig1)
 
+# ✅ MỤC ĐÁNH GIÁ BẰNG AI
 if st.checkbox("📌 Đánh giá bằng AI", key="ai1"):
     st.markdown("### 🧠 Nhận định & đề xuất từ AI:")
-    st.markdown(generate_analysis(f"Dữ liệu điểm trung bình các lớp: {avg_by_school.to_dict()}"))
+    st.markdown(generate_analysis(f"Dữ liệu điểm trung bình các trường: {avg_by_school.to_dict()}"))
 
 # ======= PHẦN 7: Thống kê số lượng thí sinh chọn môn tổ hợp (trừ Toán, Văn) =======
 st.subheader("📈 Thống kê số lượng thí sinh lựa chọn các môn tổ hợp")
@@ -168,6 +168,9 @@ else:
         st.markdown(generate_analysis(
             f"Số lượng thí sinh chọn thi từng môn tổ hợp (trừ Toán, Văn): {subject_counts}"
         ))
+
+
+
 
 
 # ======= PHẦN 2: Biểu đồ điểm trung bình theo Môn =======
@@ -281,106 +284,179 @@ if st.checkbox("📌 Đánh giá bằng AI", key="ai4"):
     st.markdown("### 🧠 Nhận định & đề xuất từ AI:")
     st.markdown(generate_analysis(f"So sánh điểm trung bình các môn thi giữa trường '{selected_school}' và toàn tỉnh.\nLớp: {subject_means_filtered.to_dict()}\nToàn trường: {subject_means_all.to_dict()}"))
 
-st.info("ℹ️ Hãy chọn một lớp cụ thể để xem thêm thống kê học sinh.")
+# ======= PHẦN 8: Biểu đồ điểm trung bình từng học sinh =======
+st.subheader("👨‍🎓 Biểu đồ điểm trung bình từng học sinh")
 
-# ======= PHẦN 8 & 9: Chỉ hiển thị khi đã chọn lớp cụ thể =======
-if selected_school != "Toàn trường":
+# Tính điểm trung bình từng học sinh đã được xử lý từ trước và nằm trong cột 'Điểm TB'
+student_avg_scores = df_filtered[['Họ tên', 'Điểm TB']].dropna().copy()
 
-    # ======= PHẦN 8: Biểu đồ điểm trung bình từng học sinh =======
-    st.subheader("👨‍🎓 Biểu đồ điểm trung bình từng học sinh")
+# Tính điểm TB toàn bộ để làm mốc so sánh
+overall_avg = student_avg_scores['Điểm TB'].mean()
 
-    student_avg_scores = df_filtered[['Họ tên', 'Điểm TB']].dropna().copy()
-    overall_avg = student_avg_scores['Điểm TB'].mean()
+# Thêm dòng "Trung bình"
+avg_row = pd.DataFrame([{'Họ tên': 'Trung bình', 'Điểm TB': overall_avg}])
+student_avg_scores = pd.concat([student_avg_scores, avg_row], ignore_index=True)
 
-    avg_row = pd.DataFrame([{'Họ tên': 'Trung bình', 'Điểm TB': overall_avg}])
-    student_avg_scores = pd.concat([student_avg_scores, avg_row], ignore_index=True)
+# Sắp xếp toàn bộ (bao gồm cả "Trung bình") từ cao đến thấp
+student_avg_scores = student_avg_scores.sort_values(by='Điểm TB', ascending=False).reset_index(drop=True)
 
-    student_avg_scores = student_avg_scores.sort_values(by='Điểm TB', ascending=False).reset_index(drop=True)
+# Gán nhãn thứ hạng
+ranked_labels_students = []
+rank_s = 1
+for name in student_avg_scores['Họ tên']:
+    if name == "Trung bình":
+        ranked_labels_students.append("Trung bình")
+    else:
+        ranked_labels_students.append(f"{rank_s}. {name}")
+        rank_s += 1
 
-    ranked_labels_students = []
-    rank_s = 1
-    for name in student_avg_scores['Họ tên']:
+# Màu sắc: tím nhạt cho học sinh, cam cho "Trung bình"
+colors = ['orange' if name == "Trung bình" else 'violet' for name in student_avg_scores['Họ tên']]  # #D8BFD8 là mã tím nhạt
+
+# Vẽ biểu đồ
+fig8, ax8 = plt.subplots(figsize=(12, 6))
+bars8 = ax8.bar(ranked_labels_students, student_avg_scores['Điểm TB'], color=colors)
+
+# Ghi giá trị trên cột
+for bar in bars8:
+    height = bar.get_height()
+    ax8.text(bar.get_x() + bar.get_width()/2, height + 0.2, f"{height:.2f}", ha='center', va='bottom', fontsize=8, rotation=90)
+
+ax8.set_ylabel("Điểm trung bình")
+ax8.set_title("Biểu đồ điểm trung bình từng học sinh")
+ax8.set_ylim(0, 10)
+plt.xticks(rotation=90, ha='right')
+
+# Tô màu chữ "Trung bình" trên trục X
+xtick_labels_s = ax8.get_xticklabels()
+for label in xtick_labels_s:
+    if label.get_text() == "Trung bình":
+        label.set_color("orange")
+
+plt.tight_layout()
+st.pyplot(fig8)
+
+# ✅ Đánh giá AI phần 8
+if st.checkbox("📌 Đánh giá bằng AI", key="ai8"):
+    st.markdown("### 🧠 Nhận định & đề xuất từ AI:")
+    st.markdown(generate_analysis(f"Dữ liệu điểm trung bình từng học sinh (đã sắp xếp): {student_avg_scores.set_index('Họ tên')['Điểm TB'].to_dict()}"))
+
+
+# ======= PHẦN 9: Biểu đồ điểm môn theo từng học sinh =======
+st.subheader("📊 Biểu đồ điểm từng môn theo học sinh")
+available_subjects_9 = [col for col in score_columns if col in df.columns]
+selected_subject_9 = st.selectbox("🎯 Chọn môn:", options=available_subjects_9, key="mon_ph9")
+
+if selected_subject_9:
+    # Lọc dữ liệu học sinh có điểm môn đã chọn
+    df_subject = df_filtered[['Họ tên', selected_subject_9]].dropna().copy()
+
+    # Tính điểm trung bình toàn bộ
+    subject_avg_overall = df_subject[selected_subject_9].mean()
+
+    # Thêm dòng trung bình
+    avg_row_9 = pd.DataFrame([{'Họ tên': 'Trung bình', selected_subject_9: subject_avg_overall}])
+    df_subject = pd.concat([df_subject, avg_row_9], ignore_index=True)
+
+    # Sắp xếp theo điểm giảm dần
+    df_subject = df_subject.sort_values(by=selected_subject_9, ascending=False).reset_index(drop=True)
+
+    # Gán nhãn xếp hạng
+    ranked_labels_sub9 = []
+    rank_sub9 = 1
+    for name in df_subject['Họ tên']:
         if name == "Trung bình":
-            ranked_labels_students.append("Trung bình")
+            ranked_labels_sub9.append("Trung bình")
         else:
-            ranked_labels_students.append(f"{rank_s}. {name}")
-            rank_s += 1
+            ranked_labels_sub9.append(f"{rank_sub9}. {name}")
+            rank_sub9 += 1
 
-    colors = ['orange' if name == "Trung bình" else 'violet' for name in student_avg_scores['Họ tên']]
+    # Màu sắc: cam cho "Trung bình", tím nhạt cho học sinh
+    colors_9 = ['orange' if name == "Trung bình" else '#0099CC' for name in df_subject['Họ tên']]
 
-    fig8, ax8 = plt.subplots(figsize=(12, 6))
-    bars8 = ax8.bar(ranked_labels_students, student_avg_scores['Điểm TB'], color=colors)
+    # Vẽ biểu đồ
+    fig9, ax9 = plt.subplots(figsize=(12, 6))
+    bars9 = ax9.bar(ranked_labels_sub9, df_subject[selected_subject_9], color=colors_9)
 
-    for bar in bars8:
+    # Ghi giá trị trên đầu cột
+    for bar in bars9:
         height = bar.get_height()
-        ax8.text(bar.get_x() + bar.get_width()/2, height + 0.2, f"{height:.2f}", ha='center', va='bottom', fontsize=8, rotation=90)
+        ax9.text(bar.get_x() + bar.get_width()/2, height + 0.2, f"{height:.2f}", ha='center', va='bottom', fontsize=9, rotation=90)
 
-    ax8.set_ylabel("Điểm trung bình")
-    ax8.set_title("Biểu đồ điểm trung bình từng học sinh")
-    ax8.set_ylim(0, 10)
+    ax9.set_ylabel(f"Điểm môn {selected_subject_9}")
+    ax9.set_title(f"Biểu đồ điểm môn {selected_subject_9} theo từng học sinh")
+    ax9.set_ylim(0, 10)
     plt.xticks(rotation=90, ha='right')
 
-    xtick_labels_s = ax8.get_xticklabels()
-    for label in xtick_labels_s:
+    # 👉 Tô màu chữ "Trung bình" thành cam
+    xtick_labels_9 = ax9.get_xticklabels()
+    for label in xtick_labels_9:
         if label.get_text() == "Trung bình":
             label.set_color("orange")
 
     plt.tight_layout()
-    st.pyplot(fig8)
+    st.pyplot(fig9)
 
-    if st.checkbox("📌 Đánh giá bằng AI", key="ai8"):
+    # ✅ Đánh giá bằng AI
+    if st.checkbox("📌 Đánh giá bằng AI", key="ai9"):
         st.markdown("### 🧠 Nhận định & đề xuất từ AI:")
-        st.markdown(generate_analysis(f"Dữ liệu điểm trung bình từng học sinh (đã sắp xếp): {student_avg_scores.set_index('Họ tên')['Điểm TB'].to_dict()}"))
+        st.markdown(generate_analysis(f"Điểm môn {selected_subject_9} theo từng học sinh: {df_subject.set_index('Họ tên')[selected_subject_9].to_dict()}"))
 
-    # ======= PHẦN 9: Biểu đồ điểm môn theo từng học sinh =======
-    st.subheader("📊 Biểu đồ điểm từng môn theo học sinh")
-    available_subjects_9 = [col for col in score_columns if col in df.columns]
-    selected_subject_9 = st.selectbox("🎯 Chọn môn:", options=available_subjects_9, key="mon_ph9")
+# ======= PHẦN BỔ SUNG: TOP 10 HỌC SINH & HỌC SINH CÓ NGUY CƠ TRƯỢT TỐT NGHIỆP =======
+st.subheader("🏆 Top 10 học sinh có tổng điểm các môn thi cao nhất (Toàn trường)")
 
-    if selected_subject_9:
-        df_subject = df_filtered[['Họ tên', selected_subject_9]].dropna().copy()
-        subject_avg_overall = df_subject[selected_subject_9].mean()
+# Chỉ lấy các môn thi chính để tính tổng điểm:
+main_subjects = ['Toán', 'Văn', 'Anh', 'Lý', 'Hóa', 'Sinh', 'Sử', 'Địa', 'KTPL', 'Tin', 'CN (NN)', 'CN (CN)']
+subject_cols_for_sum = [col for col in main_subjects if col in df.columns]
 
-        avg_row_9 = pd.DataFrame([{'Họ tên': 'Trung bình', selected_subject_9: subject_avg_overall}])
-        df_subject = pd.concat([df_subject, avg_row_9], ignore_index=True)
+# Tính tổng điểm các môn cho từng học sinh
+df['Tổng điểm'] = df[subject_cols_for_sum].sum(axis=1, skipna=True)
 
-        df_subject = df_subject.sort_values(by=selected_subject_9, ascending=False).reset_index(drop=True)
+# Lấy top 10 học sinh cao điểm nhất (chỉ tính những học sinh có tên)
+top_students = df[['Họ tên', 'Lớp', 'Tổng điểm']].dropna(subset=['Họ tên'])
+top_students = top_students.sort_values('Tổng điểm', ascending=False).head(10)
+top_students = top_students.reset_index(drop=True)           # Xóa index cũ
+top_students.insert(0, "STT", range(1, len(top_students) + 1))  # Thêm cột số thứ tự
+st.table(top_students.style.format({'Tổng điểm': '{:.2f}'}))
 
-        ranked_labels_sub9 = []
-        rank_sub9 = 1
-        for name in df_subject['Họ tên']:
-            if name == "Trung bình":
-                ranked_labels_sub9.append("Trung bình")
-            else:
-                ranked_labels_sub9.append(f"{rank_sub9}. {name}")
-                rank_sub9 += 1
+# Thống kê học sinh có điểm TN dưới 5
+at_risk_students = df[df['TN'] < 5][['Họ tên', 'Lớp', 'TN']].dropna(subset=['Họ tên'])
 
-        colors_9 = ['orange' if name == "Trung bình" else '#0099CC' for name in df_subject['Họ tên']]
+st.write(f"Số lượng học sinh có điểm TN dưới 5: **{len(at_risk_students)}**")
+if len(at_risk_students) > 0:
+    at_risk_students = at_risk_students.reset_index(drop=True)   # Xóa index cũ
+    at_risk_students.insert(0, "STT", range(1, len(at_risk_students) + 1))
+    st.table(at_risk_students.style.format({'TN': '{:.2f}'}))
+else:
+    st.success("Tất cả học sinh đều đạt điểm TN từ 5 trở lên!")
 
-        fig9, ax9 = plt.subplots(figsize=(12, 6))
-        bars9 = ax9.bar(ranked_labels_sub9, df_subject[selected_subject_9], color=colors_9)
 
-        for bar in bars9:
-            height = bar.get_height()
-            ax9.text(bar.get_x() + bar.get_width()/2, height + 0.2, f"{height:.2f}", ha='center', va='bottom', fontsize=9, rotation=90)
+# ======= PHẦN BỔ SUNG: BỘ LỌC NHÓM MÔN & TOP 10 THÍ SINH CAO NHẤT THEO NHÓM =======
 
-        ax9.set_ylabel(f"Điểm môn {selected_subject_9}")
-        ax9.set_title(f"Biểu đồ điểm môn {selected_subject_9} theo từng học sinh")
-        ax9.set_ylim(0, 10)
-        plt.xticks(rotation=90, ha='right')
+st.subheader("🔎 Lọc Top 10 thí sinh cao điểm nhất theo nhóm môn tự chọn")
 
-        xtick_labels_9 = ax9.get_xticklabels()
-        for label in xtick_labels_9:
-            if label.get_text() == "Trung bình":
-                label.set_color("orange")
+# Danh sách môn được phép chọn nhóm
+main_subjects = ['Toán', 'Văn', 'Anh', 'Lý', 'Hóa', 'Sinh', 'Sử', 'Địa', 'KTPL', 'Tin', 'CN (NN)', 'CN (CN)']
+available_subjects_group = [col for col in main_subjects if col in df.columns]
 
-        plt.tight_layout()
-        st.pyplot(fig9)
+selected_subjects_group = st.multiselect(
+    "Chọn các môn để tính tổng điểm (nhóm môn):",
+    options=available_subjects_group,
+    default=available_subjects_group[:3],  # Mặc định chọn 3 môn đầu tiên
+)
 
-        if st.checkbox("📌 Đánh giá bằng AI", key="ai9"):
-            st.markdown("### 🧠 Nhận định & đề xuất từ AI:")
-            st.markdown(generate_analysis(f"Điểm môn {selected_subject_9} theo từng học sinh: {df_subject.set_index('Họ tên')[selected_subject_9].to_dict()}"))
+if selected_subjects_group:
+    df['Tổng điểm nhóm môn'] = df[selected_subjects_group].sum(axis=1, skipna=True)
+    top10_group = df[['Họ tên', 'Lớp', 'Tổng điểm nhóm môn']].dropna(subset=['Họ tên'])
+    top10_group = top10_group.sort_values('Tổng điểm nhóm môn', ascending=False).head(10)
+    top10_group = top10_group.reset_index(drop=True)             # Xóa index cũ
+    top10_group.insert(0, "STT", range(1, len(top10_group) + 1)) # Thêm cột số thứ tự
 
+    st.write(f"**Các môn đang chọn:** {', '.join(selected_subjects_group)}")
+    st.table(top10_group.style.format({'Tổng điểm nhóm môn': '{:.2f}'}))
+
+else:
+    st.info("Vui lòng chọn ít nhất 1 môn để xem Top 10 thí sinh.")
 
 
 
