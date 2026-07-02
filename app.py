@@ -31,7 +31,7 @@ col1, col2 = st.columns([1, 15])
 with col1:
     st.image("logo.png", width=80)
 with col2:
-    st.markdown("## TRƯỜNG THPT ATK TÂN TRÀO")
+    st.markdown("## TRƯỜNG ...")
 st.title("📘 Phân tích điểm thi")
 
 # Upload file chỉ cho máy chủ
@@ -61,14 +61,12 @@ except:
     st.stop()
 
 # Tiền xử lý
-df.columns = df.columns.str.strip()  # Chuẩn hóa tên cột
-score_columns = ['Toán', 'Văn', 'Anh', 'Lý', 'Hóa', 'Sinh', 'Sử', 'Địa', 'KTPL', 'Tin', 'CN (NN)', 'CN (CN)','ĐTB cac nam','KK','UT','TN']
+df.columns = df.columns.str.strip()
+score_columns = ['Toán', 'Văn', 'Anh', 'Lý', 'Hóa', 'Sinh', 'Sử', 'Địa', 'KTPL', 'Tin', 'CN (NN)', 'CN (CN)']
 for col in score_columns:
     if col in df.columns:
         df[col] = pd.to_numeric(df[col], errors='coerce')
-
-# Chỉ lấy điểm trung bình theo cột TN:
-df['Điểm TB'] = df['TN']
+df['Điểm TB'] = df[score_columns].mean(axis=1, skipna=True)
 
 # Sidebar lọc
 st.sidebar.header("🔎 Bộ lọc dữ liệu")
@@ -402,94 +400,6 @@ if selected_subject_9:
         st.markdown("### 🧠 Nhận định & đề xuất từ AI:")
         st.markdown(generate_analysis(f"Điểm môn {selected_subject_9} theo từng học sinh: {df_subject.set_index('Họ tên')[selected_subject_9].to_dict()}"))
 
-# ======= PHẦN BỔ SUNG: TOP 10 HỌC SINH & HỌC SINH CÓ NGUY CƠ TRƯỢT TỐT NGHIỆP =======
-st.subheader("🏆 Top 10 học sinh có tổng điểm các môn thi cao nhất (Toàn trường)")
-
-# Chỉ lấy các môn thi chính để tính tổng điểm:
-main_subjects = ['Toán', 'Văn', 'Anh', 'Lý', 'Hóa', 'Sinh', 'Sử', 'Địa', 'KTPL', 'Tin', 'CN (NN)', 'CN (CN)']
-subject_cols_for_sum = [col for col in main_subjects if col in df.columns]
-
-# Tính tổng điểm các môn cho từng học sinh
-df['Tổng điểm'] = df[subject_cols_for_sum].sum(axis=1, skipna=True)
-
-# Lấy top 10 học sinh cao điểm nhất (chỉ tính những học sinh có tên)
-top_students = df[['Họ tên', 'Lớp', 'Tổng điểm']].dropna(subset=['Họ tên'])
-top_students = top_students.sort_values('Tổng điểm', ascending=False).head(10)
-top_students = top_students.reset_index(drop=True)           # Xóa index cũ
-top_students.insert(0, "STT", range(1, len(top_students) + 1))  # Thêm cột số thứ tự
-st.table(top_students.style.format({'Tổng điểm': '{:.2f}'}))
-
-# Thống kê học sinh có điểm TN dưới 5
-at_risk_students = df[df['TN'] < 5][['Họ tên', 'Lớp', 'TN']].dropna(subset=['Họ tên'])
-
-st.subheader(f"⚠️ Danh sách học sinh có điểm TN dưới 5 (Nguy cơ trượt tốt nghiệp) — Tổng: {len(at_risk_students)} học sinh")
-if len(at_risk_students) > 0:
-    at_risk_students = at_risk_students.reset_index(drop=True)
-    at_risk_students.insert(0, "STT", range(1, len(at_risk_students) + 1))
-    st.table(at_risk_students.style.format({'TN': '{:.2f}'}))
-else:
-    st.success("Tất cả học sinh đều đạt điểm TN từ 5 trở lên!")
-
-
-# ======= PHẦN BỔ SUNG: BỘ LỌC NHÓM MÔN & TOP 10 THÍ SINH CAO NHẤT THEO NHÓM =======
-
-st.subheader("🔎 Lọc Top 10 thí sinh cao điểm nhất theo nhóm môn tự chọn")
-
-# Danh sách môn được phép chọn nhóm
-main_subjects = ['Toán', 'Văn', 'Anh', 'Lý', 'Hóa', 'Sinh', 'Sử', 'Địa', 'KTPL', 'Tin', 'CN (NN)', 'CN (CN)']
-available_subjects_group = [col for col in main_subjects if col in df.columns]
-
-selected_subjects_group = st.multiselect(
-    "Chọn các môn để tính tổng điểm (nhóm môn):",
-    options=available_subjects_group,
-    default=available_subjects_group[:3],  # Mặc định chọn 3 môn đầu tiên
-)
-
-if selected_subjects_group:
-    df['Tổng điểm nhóm môn'] = df[selected_subjects_group].sum(axis=1, skipna=True)
-    top10_group = df[['Họ tên', 'Lớp', 'Tổng điểm nhóm môn']].dropna(subset=['Họ tên'])
-    top10_group = top10_group.sort_values('Tổng điểm nhóm môn', ascending=False).head(10)
-    top10_group = top10_group.reset_index(drop=True)             # Xóa index cũ
-    top10_group.insert(0, "STT", range(1, len(top10_group) + 1)) # Thêm cột số thứ tự
-
-    st.write(f"**Các môn đang chọn:** {', '.join(selected_subjects_group)}")
-    st.table(top10_group.style.format({'Tổng điểm nhóm môn': '{:.2f}'}))
-
-else:
-    st.info("Vui lòng chọn ít nhất 1 môn để xem Top 10 thí sinh.")
-
-# ======= PHẦN BỔ SUNG: Danh sách thí sinh có điểm các môn từ 8 trở lên =======
-st.subheader("🌟 Danh sách thí sinh có điểm các môn thi từ 8 trở lên")
-
-main_subjects = ['Toán', 'Văn', 'Anh', 'Lý', 'Hóa', 'Sinh', 'Sử', 'Địa', 'KTPL', 'Tin', 'CN (NN)', 'CN (CN)']
-subject_cols_for_filter = [col for col in main_subjects if col in df.columns]
-
-# Tạo danh sách để lưu kết quả
-high_scores = []
-
-# Duyệt qua từng học sinh
-for _, row in df[['Họ tên'] + subject_cols_for_filter].dropna(subset=['Họ tên']).iterrows():
-    for subject in subject_cols_for_filter:
-        try:
-            score = row[subject]
-            if pd.notna(score) and score >= 8:
-                high_scores.append({
-                    "Họ và tên": row['Họ tên'],
-                    "Môn": subject,
-                    "Điểm": score
-                })
-        except:
-            pass
-
-# Tạo DataFrame kết quả
-df_high_scores = pd.DataFrame(high_scores)
-
-if not df_high_scores.empty:
-    df_high_scores = df_high_scores.reset_index(drop=True)
-    df_high_scores.insert(0, "STT", range(1, len(df_high_scores) + 1))
-    st.table(df_high_scores.style.format({'Điểm': '{:.2f}'}))
-else:
-    st.info("Không có thí sinh nào đạt điểm từ 8 trở lên ở các môn thi chính.")
 
 
 # ====== CHÂN TRANG ======
